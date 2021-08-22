@@ -2,12 +2,9 @@
 #ifndef _LINUX_LIST_H
 #define _LINUX_LIST_H
 
-#include <linux/types.h>
-#include <linux/stddef.h>
-#include <linux/poison.h>
-#include <linux/const.h>
-#include <linux/kernel.h>
+#define NOT_SUPPORT_TYPEOF 0   //不支持typeof获取pos类型
 
+/*双向链表*/
 /*
  * Circular doubly linked list implementation.
  *
@@ -17,6 +14,27 @@
  * generate better code by using them directly rather than
  * using the generic single-entry routines.
  */
+struct list_head {
+	struct list_head* next, * prev;
+};
+#ifndef NULL
+#define NULL 0;
+#endif // !NULL
+
+#define LIST_POISON1 ((void*) 0x40100100)
+#define LIST_POISON2 ((void*) 0x50200200)
+
+#define  READ_ONCE(x) x
+#define  WRITE_ONCE(x,y) x = y
+
+/*
+#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+#define container_of(ptr, type, member) ({           \         
+    const typeof(((type*)0)->member)* __mptr = (ptr);    \
+    (type*)((char*)__mptr - offsetof(type, member));})
+*/
+#define container_of(ptr, type, member) \
+    (type*)((char*)ptr - ((size_t)&((type *)0)->member))
 
 #define LIST_HEAD_INIT(name) { &(name), &(name) }
 
@@ -37,12 +55,12 @@ static inline void INIT_LIST_HEAD(struct list_head *list)
 }
 
 #ifdef CONFIG_DEBUG_LIST
-extern bool __list_add_valid(struct list_head *new,
+extern bool __list_add_valid(struct list_head *newobj,
 			      struct list_head *prev,
 			      struct list_head *next);
 extern bool __list_del_entry_valid(struct list_head *entry);
 #else
-static inline bool __list_add_valid(struct list_head *new,
+static inline bool __list_add_valid(struct list_head *newobj,
 				struct list_head *prev,
 				struct list_head *next)
 {
@@ -55,49 +73,49 @@ static inline bool __list_del_entry_valid(struct list_head *entry)
 #endif
 
 /*
- * Insert a new entry between two known consecutive entries.
+ * Insert a newobj entry between two known consecutive entries.
  *
  * This is only for internal list manipulation where we know
  * the prev/next entries already!
  */
-static inline void __list_add(struct list_head *new,
+static inline void __list_add(struct list_head *newobj,
 			      struct list_head *prev,
 			      struct list_head *next)
 {
-	if (!__list_add_valid(new, prev, next))
+	if (!__list_add_valid(newobj, prev, next))
 		return;
 
-	next->prev = new;
-	new->next = next;
-	new->prev = prev;
-	WRITE_ONCE(prev->next, new);
+	next->prev = newobj;
+	newobj->next = next;
+	newobj->prev = prev;
+	WRITE_ONCE(prev->next, newobj);
 }
 
 /**
- * list_add - add a new entry
- * @new: new entry to be added
+ * list_add - add a newobj entry
+ * @newobj: newobj entry to be added
  * @head: list head to add it after
  *
- * Insert a new entry after the specified head.
+ * Insert a newobj entry after the specified head.
  * This is good for implementing stacks.
  */
-static inline void list_add(struct list_head *new, struct list_head *head)
+static inline void list_add(struct list_head *newobj, struct list_head *head)
 {
-	__list_add(new, head, head->next);
+	__list_add(newobj, head, head->next);
 }
 
 
 /**
- * list_add_tail - add a new entry
- * @new: new entry to be added
+ * list_add_tail - add a newobj entry
+ * @newobj: newobj entry to be added
  * @head: list head to add it before
  *
- * Insert a new entry before the specified head.
+ * Insert a newobj entry before the specified head.
  * This is useful for implementing queues.
  */
-static inline void list_add_tail(struct list_head *new, struct list_head *head)
+static inline void list_add_tail(struct list_head *newobj, struct list_head *head)
 {
-	__list_add(new, head->prev, head);
+	__list_add(newobj, head->prev, head);
 }
 
 /*
@@ -144,37 +162,37 @@ static inline void __list_del_entry(struct list_head *entry)
 static inline void list_del(struct list_head *entry)
 {
 	__list_del_entry(entry);
-	entry->next = LIST_POISON1;
-	entry->prev = LIST_POISON2;
+	entry->next = (list_head*)LIST_POISON1;
+	entry->prev = (list_head*)LIST_POISON2;
 }
 
 /**
- * list_replace - replace old entry by new one
+ * list_replace - replace old entry by newobj one
  * @old : the element to be replaced
- * @new : the new element to insert
+ * @newobj : the newobj element to insert
  *
  * If @old was empty, it will be overwritten.
  */
 static inline void list_replace(struct list_head *old,
-				struct list_head *new)
+				struct list_head *newobj)
 {
-	new->next = old->next;
-	new->next->prev = new;
-	new->prev = old->prev;
-	new->prev->next = new;
+	newobj->next = old->next;
+	newobj->next->prev = newobj;
+	newobj->prev = old->prev;
+	newobj->prev->next = newobj;
 }
 
 /**
- * list_replace_init - replace old entry by new one and initialize the old one
+ * list_replace_init - replace old entry by newobj one and initialize the old one
  * @old : the element to be replaced
- * @new : the new element to insert
+ * @newobj : the newobj element to insert
  *
  * If @old was empty, it will be overwritten.
  */
 static inline void list_replace_init(struct list_head *old,
-				     struct list_head *new)
+				     struct list_head *newobj)
 {
-	list_replace(old, new);
+	list_replace(old, newobj);
 	INIT_LIST_HEAD(old);
 }
 
@@ -293,12 +311,12 @@ static inline int list_empty(const struct list_head *head)
  * Any memory operations done before a list_del_init_careful() are
  * guaranteed to be visible after a list_empty_careful() test.
  */
-static inline void list_del_init_careful(struct list_head *entry)
-{
-	__list_del_entry(entry);
-	entry->prev = entry;
-	smp_store_release(&entry->next, entry);
-}
+//static inline void list_del_init_careful(struct list_head *entry)
+//{
+//	__list_del_entry(entry);
+//	entry->prev = entry;
+//	smp_store_release(&entry->next, entry);
+//}
 
 /**
  * list_empty_careful - tests whether a list is empty and not being modified
@@ -313,11 +331,11 @@ static inline void list_del_init_careful(struct list_head *entry)
  * to the list entry is list_del_init(). Eg. it cannot be used
  * if another CPU could re-list_add() it.
  */
-static inline int list_empty_careful(const struct list_head *head)
-{
-	struct list_head *next = smp_load_acquire(&head->next);
-	return (next == head) && (next == head->prev);
-}
+//static inline int list_empty_careful(const struct list_head *head)
+//{
+//	struct list_head *next = smp_load_acquire(&head->next);
+//	return (next == head) && (next == head->prev);
+//}
 
 /**
  * list_rotate_left - rotate the list to the left
@@ -335,10 +353,10 @@ static inline void list_rotate_left(struct list_head *head)
 
 /**
  * list_rotate_to_front() - Rotate list to specific item.
- * @list: The desired new front of the list.
+ * @list: The desired newobj front of the list.
  * @head: The head of the list.
  *
- * Rotates list so that @list becomes the new front of the list.
+ * Rotates list so that @list becomes the newobj front of the list.
  */
 static inline void list_rotate_to_front(struct list_head *list,
 					struct list_head *head)
@@ -374,7 +392,7 @@ static inline void __list_cut_position(struct list_head *list,
 
 /**
  * list_cut_position - cut a list into two
- * @list: a new list to add all removed entries
+ * @list: a newobj list to add all removed entries
  * @head: a list with entries
  * @entry: an entry within head, could be the head itself
  *	and if so we won't cut the list
@@ -402,7 +420,7 @@ static inline void list_cut_position(struct list_head *list,
 
 /**
  * list_cut_before - cut a list into two, before given entry
- * @list: a new list to add all removed entries
+ * @list: a newobj list to add all removed entries
  * @head: a list with entries
  * @entry: an entry within head, could be the head itself
  *
@@ -446,7 +464,7 @@ static inline void __list_splice(const struct list_head *list,
 
 /**
  * list_splice - join two lists, this is designed for stacks
- * @list: the new list to add.
+ * @list: the newobj list to add.
  * @head: the place to add it in the first list.
  */
 static inline void list_splice(const struct list_head *list,
@@ -458,7 +476,7 @@ static inline void list_splice(const struct list_head *list,
 
 /**
  * list_splice_tail - join two lists, each list being a queue
- * @list: the new list to add.
+ * @list: the newobj list to add.
  * @head: the place to add it in the first list.
  */
 static inline void list_splice_tail(struct list_head *list,
@@ -470,7 +488,7 @@ static inline void list_splice_tail(struct list_head *list,
 
 /**
  * list_splice_init - join two lists and reinitialise the emptied list.
- * @list: the new list to add.
+ * @list: the newobj list to add.
  * @head: the place to add it in the first list.
  *
  * The list at @list is reinitialised
@@ -486,7 +504,7 @@ static inline void list_splice_init(struct list_head *list,
 
 /**
  * list_splice_tail_init - join two lists and reinitialise the emptied list
- * @list: the new list to add.
+ * @list: the newobj list to add.
  * @head: the place to add it in the first list.
  *
  * Each of the lists is a queue.
@@ -779,12 +797,19 @@ static inline void list_splice_tail_init(struct list_head *list,
 #define list_safe_reset_next(pos, n, member)				\
 	n = list_next_entry(pos, member)
 
+/*哈希链表*/
 /*
  * Double linked lists with a single pointer list head.
  * Mostly useful for hash tables where the two pointer list head is
  * too wasteful.
  * You lose the ability to access the tail in O(1).
  */
+struct hlist_head {
+	struct hlist_node* first;
+};
+struct hlist_node {
+	struct hlist_node* next, ** pprev;
+};
 
 #define HLIST_HEAD_INIT { .first = NULL }
 #define HLIST_HEAD(name) struct hlist_head name = {  .first = NULL }
@@ -850,8 +875,8 @@ static inline void __hlist_del(struct hlist_node *n)
 static inline void hlist_del(struct hlist_node *n)
 {
 	__hlist_del(n);
-	n->next = LIST_POISON1;
-	n->pprev = LIST_POISON2;
+	n->next = (hlist_node*)LIST_POISON1;
+	n->pprev = (hlist_node**)LIST_POISON2;
 }
 
 /**
@@ -869,11 +894,11 @@ static inline void hlist_del_init(struct hlist_node *n)
 }
 
 /**
- * hlist_add_head - add a new entry at the beginning of the hlist
- * @n: new entry to be added
+ * hlist_add_head - add a newobj entry at the beginning of the hlist
+ * @n: newobj entry to be added
  * @h: hlist head to add it after
  *
- * Insert a new entry after the specified head.
+ * Insert a newobj entry after the specified head.
  * This is good for implementing stacks.
  */
 static inline void hlist_add_head(struct hlist_node *n, struct hlist_head *h)
@@ -887,8 +912,8 @@ static inline void hlist_add_head(struct hlist_node *n, struct hlist_head *h)
 }
 
 /**
- * hlist_add_before - add a new entry before the one specified
- * @n: new entry to be added
+ * hlist_add_before - add a newobj entry before the one specified
+ * @n: newobj entry to be added
  * @next: hlist node to add it before, which must be non-NULL
  */
 static inline void hlist_add_before(struct hlist_node *n,
@@ -901,8 +926,8 @@ static inline void hlist_add_before(struct hlist_node *n,
 }
 
 /**
- * hlist_add_behind - add a new entry after the one specified
- * @n: new entry to be added
+ * hlist_add_behind - add a newobj entry after the one specified
+ * @n: newobj entry to be added
  * @prev: hlist node to add it after, which must be non-NULL
  */
 static inline void hlist_add_behind(struct hlist_node *n,
@@ -955,21 +980,22 @@ hlist_is_singular_node(struct hlist_node *n, struct hlist_head *h)
 /**
  * hlist_move_list - Move an hlist
  * @old: hlist_head for old list.
- * @new: hlist_head for new list.
+ * @newobj: hlist_head for newobj list.
  *
  * Move a list from one list head to another. Fixup the pprev
  * reference of the first entry if it exists.
  */
 static inline void hlist_move_list(struct hlist_head *old,
-				   struct hlist_head *new)
+				   struct hlist_head *newobj)
 {
-	new->first = old->first;
-	if (new->first)
-		new->first->pprev = &new->first;
+	newobj->first = old->first;
+	if (newobj->first)
+		newobj->first->pprev = &newobj->first;
 	old->first = NULL;
 }
 
-#define hlist_entry(ptr, type, member) container_of(ptr,type,member)
+#define hlist_entry(ptr, type, member)  \
+     container_of(ptr,type,member)
 
 #define hlist_for_each(pos, head) \
 	for (pos = (head)->first; pos ; pos = pos->next)
