@@ -45,7 +45,7 @@ struct list_head {
  * INIT_LIST_HEAD - Initialize a list_head structure
  * @list: list_head structure to be initialized.
  *
- * Initializes the list_head to point to itself.  If it is a list header,
+ * Initializes the list_head to point to itself.  If it is a list header,指向自身的指针
  * the result is an empty list.
  */
 static inline void INIT_LIST_HEAD(struct list_head *list)

@@ -32,10 +32,17 @@ static int demo_init(void)
 		if (nullptr == stu) {
 			goto error0;
 		}
+		printf("size:%d\n", sizeof(struct ourstu));
+		printf("before init list:%p\n", &stu->list);
+		printf("before init list:%p\n", stu->list);
+		INIT_LIST_HEAD(&stu->list);
+		printf("after init list:%p\n", &stu->list);
+		printf("after init list:%p\n", stu->list);
 		stu->num = 100 + i;
-		sprintf_s(stu->name, "spring%d", i);
+		sprintf_s(stu->name, "name%d", i);
 
-		list_add(&stu->list, &head);
+		list_add_tail(&stu->list, &head);//先进先出，尾部增加
+	    //list_add(&stu->list, &head);//栈，头部增加
 	}
 
 	list_for_each(pos, &head) {
@@ -47,7 +54,7 @@ static int demo_init(void)
 
 error0:
 	list_for_each_safe(pos, n, &head) {
-		stu = container_of(pos, struct ourstu, list);
+		stu = container_of(pos, struct ourstu, list);//在循环中，处理每个数据；若有删除节点要用list_for_each_safe，不删除list_for_each即可
 		printf("%s see bye...\n", stu->name);
 		free(stu);
 	}
@@ -65,11 +72,10 @@ static void demo_exit(void)
 	list_for_each_safe(pos, n, &head) {
 		stu = container_of(pos, struct ourstu, list);
 		printf("%s say bye...\n", stu->name);
-		free(stu);
+		free(stu);//释放head
 	}
 
 	printf("see you, kernel...\n");
-	std::cout << "see you, kernel..." << std::endl;
 }
 
 int main()
